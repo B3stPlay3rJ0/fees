@@ -1,9 +1,17 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <!-- FullCalendar CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
+
+  <!-- FullCalendar JS -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Fees Dashboard — Joanne</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.js"></script>
   <style>
     :root{--bg:#0f172a;--card:#0b1220;--muted:#94a3b8;--accent:#0ea5a4;--danger:#ef4444;--warn:#f59e0b;--ok:#10b981}
     html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
@@ -29,6 +37,7 @@
     footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
     .totals{font-weight:700}
     .actions{display:flex;gap:8px}
+    #calendar{margin-top:20px;background:#0b1220;border-radius:12px;padding:10px}
     @media (max-width:720px){thead th:nth-child(3),thead th:nth-child(4){display:none}tbody td:nth-child(3),tbody td:nth-child(4){display:none}}
   </style>
 </head>
@@ -69,15 +78,16 @@
         </table>
       </div>
 
+      <div id="calendar"></div>
+
       <footer>
         <div class="small totals" id="summary">Total: RM 0.00 — Upcoming within 14 days: 0</div>
-        <div class="actions small">moj0joj0jo</div>
+        <div class="actions small">Built for your dad ✓</div>
       </footer>
     </div>
   </div>
 
   <script>
-    // Data taken from your table (as provided). Dates are parsed as local dates.
     const fees = [
       {type:'School Fees', desc:'Summer Semester (2 units)', amount:16663.20, due:'2025-12-04', notes:''},
       {type:'Exchange, School Fees', desc:'Exchange Semester (3 units)', amount:24994.80, due:'2026-03-06', notes:''},
@@ -93,7 +103,7 @@
       {type:'Exchange, Accoms', desc:'Accommondation — 813 MYR/week (2 weeks)', amount:1626.00, due:'2026-07-05', notes:'Week 19 - 20 — 21 Jun - 5 Jul'}
     ];
 
-    const today = new Date('2025-11-14T00:00:00'); // local reference date provided
+    const today = new Date('2025-11-14T00:00:00');
 
     function formatDate(iso){
       const d = new Date(iso + 'T00:00:00');
@@ -107,13 +117,12 @@
     }
 
     function statusFor(days){
-      if(days < 0) return {cls:'status-overdue', text: days===-0 ? 'Due today' : 'Overdue'}; // -0 unlikely
+      if(days < 0) return {cls:'status-overdue', text:'Overdue'};
       if(days === 0) return {cls:'status-due', text:'Due today'};
-      if(days <= 14) return {cls:'status-due', text: `Due in ${days} day${days>1?'s':''}`};
+      if(days <= 14) return {cls:'status-due', text:`Due in ${days} day${days>1?'s':''}`};
       return {cls:'status-future', text:`In ${days} day${days>1?'s':''}`};
     }
 
-    // Populate filter categories
     const filterEl = document.getElementById('filter');
     const categories = Array.from(new Set(fees.map(f=>f.type)));
     categories.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;filterEl.appendChild(o)});
@@ -139,14 +148,13 @@
         tbody.appendChild(tr);
       });
       document.getElementById('summary').textContent = `Total: RM ${total.toFixed(2)} — Upcoming within 14 days: ${upcomingCount}`;
+      renderCalendar(rows);
     }
 
     function escapeHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
-    // Initial render
     render(fees);
 
-    // Search
     document.getElementById('search').addEventListener('input',e=>{
       const q = e.target.value.toLowerCase();
       const cat = filterEl.value;
@@ -159,7 +167,6 @@
 
     filterEl.addEventListener('change',()=>document.getElementById('search').dispatchEvent(new Event('input')));
 
-    // Sort toggle by date
     let asc = true;
     document.getElementById('sortDate').addEventListener('click',()=>{
       const copy = [...fees].sort((a,b)=> new Date(a.due) - new Date(b.due));
@@ -168,7 +175,6 @@
       render(copy);
     });
 
-    // Export CSV
     document.getElementById('export').addEventListener('click',()=>{
       const header = ['Fee Type','Description','Amount (RM)','Due Date','Notes'];
       const rows = [header].concat(fees.map(f=>[f.type,f.desc,f.amount.toFixed(2),formatDate(f.due),f.notes]));
@@ -178,9 +184,28 @@
       const a = document.createElement('a'); a.href = url; a.download = 'fees.csv'; a.click(); URL.revokeObjectURL(url);
     });
 
-    // Print
     document.getElementById('print').addEventListener('click',()=>window.print());
 
+    // Calendar view
+    function renderCalendar(rows){
+      const calEl = document.getElementById('calendar');
+      calEl.innerHTML='';
+      const events = rows.map(r=>({
+        title: `${r.type}: RM${r.amount.toFixed(2)}`,
+        start: r.due,
+        extendedProps: {desc: r.desc, notes: r.notes}
+      }));
+      const calendar = new FullCalendar.Calendar(calEl, {
+        initialView: 'dayGridMonth',
+        height: 550,
+        events: events,
+        eventDidMount: info => {
+          const tip = `${info.event.extendedProps.desc}\n${info.event.extendedProps.notes}`;
+          info.el.title = tip;
+        }
+      });
+      calendar.render();
+    }
   </script>
 </body>
 </html>
